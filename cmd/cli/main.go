@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"os"
 
@@ -17,22 +16,23 @@ import (
 func main() {
 	ctx := context.Background()
 
-	fileName := flag.String("filename", "assets/test.txt", "Filename")
-	flag.Parse()
-
 	ollama := ollama.NewOllama()
 	store := store.NewInMemoryStore()
 	vectordb := vectordb.NewInMemoryVectordb()
 	indexer := indexer.NewIndexer()
 	oracle := oracle.NewOracle(ollama, store, vectordb, indexer)
 
-	fmt.Print("🚩 loading and indexing...")
-	data, err := os.ReadFile(*fileName)
-	if err != nil {
-		panic(err)
-	}
-	if err := oracle.AddData(ctx, *fileName, string(data)); err != nil {
-		panic(err)
+	fmt.Println("🚩 loading and indexing...")
+	for _, fileName := range os.Args[1:] {
+		fmt.Printf(" 📂 file %s...", fileName)
+		data, err := os.ReadFile(fileName)
+		if err != nil {
+			panic(err)
+		}
+		if err := oracle.AddData(ctx, fileName, string(data)); err != nil {
+			panic(err)
+		}
+		fmt.Println("done")
 	}
 	fmt.Println("done.")
 
@@ -49,6 +49,7 @@ func main() {
 		answer, err := oracle.Ask(ctx, question)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error oracle ask:", err)
+			continue
 		}
 
 		fmt.Println("🙈 answer: " + answer)

@@ -6,7 +6,7 @@ A simple tool for asking questions based on a given document.
 
 ## Run 
 ```sh
-go run cmd/cli/main.go
+make demo
 ```
 
 ## Chat example
