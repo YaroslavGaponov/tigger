@@ -3,6 +3,7 @@ package memvectordb
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/YaroslavGaponov/tigger/internal/vectordb"
 )
@@ -18,6 +19,7 @@ type searchNode struct {
 }
 
 type MemVectorDB struct {
+	mu   sync.RWMutex
 	data []Node
 }
 
@@ -26,6 +28,8 @@ func NewMemVectorDB() vectordb.VectorDB {
 }
 
 func (db *MemVectorDB) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	node := Node{
 		embedding: embedding,
 		metadata:  metadata,
@@ -35,6 +39,8 @@ func (db *MemVectorDB) Add(ctx context.Context, embedding []float64, metadata ma
 }
 
 func (db *MemVectorDB) Search(ctx context.Context, embedding []float64, topK int) ([]map[string]any, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 
 	arr := make([]searchNode, len(db.data))
 	for i, node := range db.data {
@@ -43,16 +49,13 @@ func (db *MemVectorDB) Search(ctx context.Context, embedding []float64, topK int
 			Scope: calcDistance(embedding, node.embedding),
 		}
 	}
-
 	sort.Slice(arr, func(i, j int) bool {
 		return arr[i].Scope > arr[j].Scope
 	})
-
 	var result []map[string]any
 	for i := range min(topK, len(arr)) {
 		result = append(result, arr[i].Node.metadata)
 	}
-
 	return result, nil
 }
 
