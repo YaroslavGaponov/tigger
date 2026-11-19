@@ -9,8 +9,8 @@ import (
 
 	"github.com/YaroslavGaponov/tigger/internal/indexer"
 	"github.com/YaroslavGaponov/tigger/internal/llm/ollama"
-	"github.com/YaroslavGaponov/tigger/internal/store/memstore"
-	"github.com/YaroslavGaponov/tigger/internal/vectordb/memvectordb"
+	"github.com/YaroslavGaponov/tigger/internal/store"
+	"github.com/YaroslavGaponov/tigger/internal/vectordb"
 )
 
 func main() {
@@ -26,13 +26,13 @@ func main() {
 	}
 	fmt.Println("done")
 
-	store := memstore.NewMemStore()
+	store := store.NewInMemoryStore()
 	store.Add(ctx, *fileName, text)
 
 	fmt.Printf("🚩indexing %s file...", *fileName)
 	llm := ollama.NewOllama()
 	indexer := indexer.NewIndexer()
-	vectorDb := memvectordb.NewMemVectorDB()
+	vectorDb := vectordb.NewInMemoryVectordb()
 	for sentence := range indexer.Split(string(text)) {
 		vector, err := llm.GetEmbedding(ctx, sentence.Text)
 		if err != nil {

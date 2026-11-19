@@ -1,11 +1,9 @@
-package memvectordb
+package vectordb
 
 import (
 	"context"
 	"sort"
 	"sync"
-
-	"github.com/YaroslavGaponov/tigger/internal/vectordb"
 )
 
 type Node struct {
@@ -18,16 +16,16 @@ type searchNode struct {
 	Scope float64
 }
 
-type MemVectorDB struct {
+type InMemoryVectordb struct {
 	mu   sync.RWMutex
 	data []Node
 }
 
-func NewMemVectorDB() vectordb.VectorDB {
-	return &MemVectorDB{}
+func NewInMemoryVectordb() VectorDB {
+	return &InMemoryVectordb{}
 }
 
-func (db *MemVectorDB) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
+func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	node := Node{
@@ -38,7 +36,7 @@ func (db *MemVectorDB) Add(ctx context.Context, embedding []float64, metadata ma
 	return nil
 }
 
-func (db *MemVectorDB) Search(ctx context.Context, embedding []float64, topK int) ([]map[string]any, error) {
+func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, topK int) ([]map[string]any, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
