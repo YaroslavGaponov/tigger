@@ -22,9 +22,8 @@ func main() {
 	indexer := indexer.NewIndexer()
 	oracle := oracle.NewOracle(ollama, store, vectordb, indexer)
 
-	fmt.Println("🚩 loading and indexing...")
 	for _, fileName := range os.Args[1:] {
-		fmt.Printf(" 📂 file %s...", fileName)
+		fmt.Printf("📂 Loading and indexing file: %s...", fileName)
 		data, err := os.ReadFile(fileName)
 		if err != nil {
 			panic(err)
@@ -34,11 +33,10 @@ func main() {
 		}
 		fmt.Println("done")
 	}
-	fmt.Println("done.")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Print("❓ question: ")
+		fmt.Print("❓")
 		if !scanner.Scan() {
 			if err := scanner.Err(); err != nil {
 				fmt.Fprintln(os.Stderr, "error reading input:", err)
@@ -52,7 +50,7 @@ func main() {
 			continue
 		}
 
-		fmt.Println("🙈 answer: " + answer)
+		fmt.Println("🚩", answer)
 
 	}
 
