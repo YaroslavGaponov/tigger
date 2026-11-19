@@ -12,15 +12,15 @@ var (
 
 type InMemoryStore struct {
 	mu   sync.RWMutex
-	data map[string][]byte
+	data map[string]string
 }
 
 func NewInMemoryStore() Store {
-	data := make(map[string][]byte)
+	data := make(map[string]string)
 	return &InMemoryStore{data: data}
 }
 
-func (store *InMemoryStore) Add(ctx context.Context, name string, data []byte) error {
+func (store *InMemoryStore) Add(ctx context.Context, name string, data string) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	store.data[name] = data
@@ -34,12 +34,12 @@ func (store *InMemoryStore) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (store *InMemoryStore) Get(ctx context.Context, name string, start, length int) ([]byte, error) {
+func (store *InMemoryStore) Get(ctx context.Context, name string, start, length int) (string, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	data, found := store.data[name]
 	if !found {
-		return nil, ErrDataNotFound
+		return "", ErrDataNotFound
 	}
 	return data[start : start+length], nil
 }

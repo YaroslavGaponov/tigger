@@ -8,10 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
-
-	"github.com/YaroslavGaponov/tigger/internal/llm"
 )
 
 var (
@@ -25,7 +22,7 @@ type Ollama struct {
 	embeddingModel string
 }
 
-func NewOllama(opts ...OllamaOption) llm.LLM {
+func NewOllama(opts ...OllamaOption) *Ollama {
 	ollama := &Ollama{
 		client:         &http.Client{Timeout: 10 * time.Second},
 		url:            "http://localhost:11434",
@@ -79,29 +76,7 @@ func (ollama *Ollama) GetEmbedding(ctx context.Context, text string) ([]float64,
 
 }
 
-func (llm *Ollama) Chat(ctx context.Context, context []string, question string) (string, error) {
-
-	var messages []Message
-
-	messages = append(messages, Message{
-		Role:    "system",
-		Content: "You are an assistant that answers questions exclusively based on the provided context. If the answer cannot be found in the context, respond: \"Information not found in the text.\" Do not use external knowledge.",
-	})
-
-	messages = append(messages, Message{
-		Role:    "system",
-		Content: "Keep answers short.",
-	})
-
-	messages = append(messages, Message{
-		Role:    "user",
-		Content: "Context: " + strings.Join(context, "\n") + "\n",
-	})
-
-	messages = append(messages, Message{
-		Role:    "user",
-		Content: "Question: " + question,
-	})
+func (llm *Ollama) Chat(ctx context.Context, messages []Message) (string, error) {
 
 	request := ChatRequest{
 		Model:    llm.chatModel,
