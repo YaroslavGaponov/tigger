@@ -2,6 +2,7 @@ package vectordb
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"sort"
 	"sync"
 )
@@ -18,21 +19,40 @@ type searchNode struct {
 
 type InMemoryVectordb struct {
 	mu   sync.RWMutex
-	data []Node
+	data map[uuid.UUID]*Node
 }
 
 func NewInMemoryVectordb() VectorDB {
-	return &InMemoryVectordb{}
+	return &InMemoryVectordb{data: make(map[uuid.UUID]*Node)}
 }
 
 func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	node := Node{
+	id := uuid.New()
+	node := &Node{
 		embedding: embedding,
 		metadata:  metadata,
 	}
-	db.data = append(db.data, node)
+	db.data[id] = node
+	return nil
+}
+
+func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	mustDelete := true
+	for id, node := range db.data {
+		for k, v := range metadata {
+			if value, found := node.metadata[k]; found && v != value {
+				mustDelete = false
+				break
+			}
+		}
+		if mustDelete {
+			delete(db.data, id)
+		}
+	}
 	return nil
 }
 
@@ -40,12 +60,13 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
-	arr := make([]searchNode, len(db.data))
-	for i, node := range db.data {
-		arr[i] = searchNode{
-			Node:  &node,
+	arr := make([]searchNode, 0, len(db.data))
+	for _, node := range db.data {
+		arr = append(arr, searchNode{
+			Node:  node,
 			Scope: calcDistance(embedding, node.embedding),
-		}
+		},
+		)
 	}
 	sort.Slice(arr, func(i, j int) bool {
 		return arr[i].Scope > arr[j].Scope
