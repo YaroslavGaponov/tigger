@@ -46,6 +46,15 @@ func (o *Oracle) AddData(ctx context.Context, name, text string) error {
 	return nil
 }
 
+func (o *Oracle) RemovData(ctx context.Context, name string) error {
+	metadata := map[string]any{"name": name}
+	if err := o.vectordb.Remove(ctx, metadata); err != nil {
+		return err
+	}
+	return o.store.Remove(ctx, name)
+
+}
+
 func (o *Oracle) Ask(ctx context.Context, question string) (string, error) {
 	vector, err := o.ollama.GetEmbedding(ctx, question)
 	if err != nil {

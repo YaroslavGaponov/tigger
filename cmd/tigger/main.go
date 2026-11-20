@@ -6,12 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/YaroslavGaponov/tigger/internal/indexer"
 	"github.com/YaroslavGaponov/tigger/internal/ollama"
 	"github.com/YaroslavGaponov/tigger/internal/oracle"
 	"github.com/YaroslavGaponov/tigger/internal/store"
 	"github.com/YaroslavGaponov/tigger/internal/vectordb"
+	"github.com/YaroslavGaponov/tigger/internal/watcher"
 )
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
 	indexerChunkOverlap := flag.Int("indexer-chunk-overlap", 100, "Indexer chunk overlap")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <files...>\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] directories...\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "Options:")
 		flag.PrintDefaults()
 	}
@@ -53,24 +55,69 @@ func main() {
 		indexer,
 	)
 
-	for _, fileName := range flag.Args() {
-		fmt.Printf("📂 Loading and indexing file: %s...", fileName)
+	watcher, err := watcher.NewFileWatcher()
+	if err != nil {
+		panic(err)
+	}
+
+	watcher.OnCreate(func(fileName string) {
 		data, err := os.ReadFile(fileName)
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
 		}
 		if err := oracle.AddData(ctx, fileName, string(data)); err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
 		}
-		fmt.Println("done")
+	})
+
+	watcher.OnRemove(func(fileName string) {
+		if err := oracle.RemovData(ctx, fileName); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
+		}
+	})
+
+	for _, dirName := range flag.Args() {
+		entries, err := os.ReadDir(dirName)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			fmt.Printf("📂 Loading and indexing file: %s...", entry.Name())
+
+			path := filepath.Join(dirName, entry.Name())
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				continue
+			}
+
+			if err := oracle.AddData(ctx, path, string(data)); err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				return
+			}
+			fmt.Println("done")
+
+		}
 	}
+
+	watcher.Watch(ctx, flag.Args())
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("❓")
 		if !scanner.Scan() {
 			if err := scanner.Err(); err != nil {
-				fmt.Fprintln(os.Stderr, "error reading input:", err)
+				fmt.Fprintln(os.Stderr, "error:", err)
 			}
 			break
 		}
@@ -80,7 +127,7 @@ func main() {
 		}
 		answer, err := oracle.Ask(ctx, question)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error oracle ask:", err)
+			fmt.Fprintln(os.Stderr, "error:", err)
 			continue
 		}
 

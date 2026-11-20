@@ -2,9 +2,10 @@ package vectordb
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"sort"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 type Node struct {
@@ -41,8 +42,8 @@ func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metada
 func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	mustDelete := true
 	for id, node := range db.data {
+		mustDelete := true
 		for k, v := range metadata {
 			if value, found := node.metadata[k]; found && v != value {
 				mustDelete = false
@@ -76,6 +77,10 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 		result = append(result, arr[i].Node.metadata)
 	}
 	return result, nil
+}
+
+func (db *InMemoryVectordb) Size(ctx context.Context) int {
+	return len(db.data)
 }
 
 func calcDistance(a, b []float64) float64 {
