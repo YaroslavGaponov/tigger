@@ -4,8 +4,6 @@ import (
 	"context"
 	"sort"
 	"sync"
-
-	"github.com/google/uuid"
 )
 
 type Node struct {
@@ -20,13 +18,13 @@ type searchNode struct {
 
 type InMemoryVectordb struct {
 	mu             sync.RWMutex
-	data           map[uuid.UUID]*Node
+	data           map[*Node]struct{}
 	distanceMetric DistanceMetric
 }
 
 func NewInMemoryVectordb() VectorDB {
 	return &InMemoryVectordb{
-		data:           make(map[uuid.UUID]*Node),
+		data:           make(map[*Node]struct{}),
 		distanceMetric: CosineSimilarity,
 	}
 }
@@ -34,19 +32,18 @@ func NewInMemoryVectordb() VectorDB {
 func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	id := uuid.New()
 	node := &Node{
 		embedding: embedding,
 		metadata:  metadata,
 	}
-	db.data[id] = node
+	db.data[node] = struct{}{}
 	return nil
 }
 
 func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	for id, node := range db.data {
+	for node := range db.data {
 		mustDelete := true
 		for k, v := range metadata {
 			if value, found := node.metadata[k]; found && v != value {
@@ -55,7 +52,7 @@ func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any)
 			}
 		}
 		if mustDelete {
-			delete(db.data, id)
+			delete(db.data, node)
 		}
 	}
 	return nil
@@ -66,7 +63,7 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 	defer db.mu.RUnlock()
 
 	arr := make([]searchNode, 0, len(db.data))
-	for _, node := range db.data {
+	for node := range db.data {
 		arr = append(arr, searchNode{
 			Node:  node,
 			Scope: db.distanceMetric(embedding, node.embedding),
