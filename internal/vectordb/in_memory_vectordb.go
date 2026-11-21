@@ -19,12 +19,16 @@ type searchNode struct {
 }
 
 type InMemoryVectordb struct {
-	mu   sync.RWMutex
-	data map[uuid.UUID]*Node
+	mu             sync.RWMutex
+	data           map[uuid.UUID]*Node
+	distanceMetric DistanceMetric
 }
 
 func NewInMemoryVectordb() VectorDB {
-	return &InMemoryVectordb{data: make(map[uuid.UUID]*Node)}
+	return &InMemoryVectordb{
+		data:           make(map[uuid.UUID]*Node),
+		distanceMetric: CosineSimilarity,
+	}
 }
 
 func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
@@ -65,7 +69,7 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 	for _, node := range db.data {
 		arr = append(arr, searchNode{
 			Node:  node,
-			Scope: calcDistance(embedding, node.embedding),
+			Scope: db.distanceMetric(embedding, node.embedding),
 		},
 		)
 	}
@@ -81,12 +85,4 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 
 func (db *InMemoryVectordb) Size(ctx context.Context) int {
 	return len(db.data)
-}
-
-func calcDistance(a, b []float64) float64 {
-	var sum float64
-	for i := range a {
-		sum += a[i] * b[i]
-	}
-	return sum
 }

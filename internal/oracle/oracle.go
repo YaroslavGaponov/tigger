@@ -11,19 +11,27 @@ import (
 )
 
 type Oracle struct {
-	ollama   *ollama.Ollama
-	store    store.Store
-	vectordb vectordb.VectorDB
-	indexer  *indexer.Indexer
+	ollama         *ollama.Ollama
+	store          store.Store
+	vectordb       vectordb.VectorDB
+	indexer        *indexer.Indexer
+	topKEmbeddings int
 }
 
-func NewOracle(ollama *ollama.Ollama, store store.Store, vectordb vectordb.VectorDB, indexer *indexer.Indexer) *Oracle {
-	return &Oracle{
-		ollama:   ollama,
-		store:    store,
-		vectordb: vectordb,
-		indexer:  indexer,
+func NewOracle(ollama *ollama.Ollama, store store.Store, vectordb vectordb.VectorDB, indexer *indexer.Indexer, opts ...OracleOption) *Oracle {
+	oracle := &Oracle{
+		ollama:         ollama,
+		store:          store,
+		vectordb:       vectordb,
+		indexer:        indexer,
+		topKEmbeddings: 5,
 	}
+
+	for _, opt := range opts {
+		opt(oracle)
+	}
+
+	return oracle
 }
 
 func (o *Oracle) AddData(ctx context.Context, name, text string) error {
@@ -61,7 +69,7 @@ func (o *Oracle) Ask(ctx context.Context, question string) (string, error) {
 		return "", err
 	}
 
-	results, err := o.vectordb.Search(ctx, vector, 5)
+	results, err := o.vectordb.Search(ctx, vector, o.topKEmbeddings)
 	if err != nil {
 		return "", err
 	}
