@@ -10,31 +10,31 @@ var (
 	ErrDataNotFound = errors.New("data is not found")
 )
 
-type InMemoryStore struct {
+type Memory struct {
 	mu   sync.RWMutex
 	data map[string]string
 }
 
-func NewInMemoryStore() Store {
+func NewMemory() Store {
 	data := make(map[string]string)
-	return &InMemoryStore{data: data}
+	return &Memory{data: data}
 }
 
-func (store *InMemoryStore) Add(ctx context.Context, name string, data string) error {
+func (store *Memory) Add(ctx context.Context, name string, data string) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	store.data[name] = data
 	return nil
 }
 
-func (store *InMemoryStore) Remove(ctx context.Context, name string) error {
+func (store *Memory) Remove(ctx context.Context, name string) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	delete(store.data, name)
 	return nil
 }
 
-func (store *InMemoryStore) Get(ctx context.Context, name string, start, length int) (string, error) {
+func (store *Memory) Get(ctx context.Context, name string, start, length int) (string, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	data, found := store.data[name]

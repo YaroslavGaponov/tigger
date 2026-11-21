@@ -16,20 +16,26 @@ type searchNode struct {
 	Scope float64
 }
 
-type InMemoryVectordb struct {
+type Memory struct {
 	mu             sync.RWMutex
 	data           map[*Node]struct{}
 	distanceMetric DistanceMetric
 }
 
-func NewInMemoryVectordb() VectorDB {
-	return &InMemoryVectordb{
+func NewMemory(opts ...MemoryOption) VectorDB {
+	memory := &Memory{
 		data:           make(map[*Node]struct{}),
 		distanceMetric: CosineSimilarity,
 	}
+
+	for _, opt := range opts {
+		opt(memory)
+	}
+
+	return memory
 }
 
-func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
+func (db *Memory) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	node := &Node{
@@ -40,7 +46,7 @@ func (db *InMemoryVectordb) Add(ctx context.Context, embedding []float64, metada
 	return nil
 }
 
-func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any) error {
+func (db *Memory) Remove(ctx context.Context, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	for node := range db.data {
@@ -58,7 +64,7 @@ func (db *InMemoryVectordb) Remove(ctx context.Context, metadata map[string]any)
 	return nil
 }
 
-func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, topK int) ([]map[string]any, error) {
+func (db *Memory) Search(ctx context.Context, embedding []float64, topK int) ([]map[string]any, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
@@ -80,6 +86,6 @@ func (db *InMemoryVectordb) Search(ctx context.Context, embedding []float64, top
 	return result, nil
 }
 
-func (db *InMemoryVectordb) Size(ctx context.Context) int {
+func (db *Memory) Size(ctx context.Context) int {
 	return len(db.data)
 }

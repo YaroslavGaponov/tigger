@@ -34,9 +34,11 @@ func main() {
 
 	flag.Parse()
 
-	store := store.NewInMemoryStore()
+	store := store.NewMemory()
 
-	vectordb := vectordb.NewInMemoryVectordb()
+	vectordb := vectordb.NewMemory(
+		vectordb.MemoryWithDistanceFunc(vectordb.CosineSimilarity),
+	)
 
 	ollama := ollama.NewOllama(
 		ollama.WithUrl(*ollamaUrl),
