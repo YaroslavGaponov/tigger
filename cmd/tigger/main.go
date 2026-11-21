@@ -77,7 +77,7 @@ func main() {
 	})
 
 	watcher.OnRemove(func(fileName string) {
-		if err := oracle.RemovData(ctx, fileName); err != nil {
+		if err := oracle.RemoveData(ctx, fileName); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return
 		}

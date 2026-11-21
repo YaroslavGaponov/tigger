@@ -62,8 +62,9 @@ func (db *Memory) Remove(ctx context.Context, metadata map[string]any) error {
 			end--
 			db.data[i] = db.data[end]
 			db.data[end] = Node{}
+		} else {
+			i++
 		}
-		i++
 	}
 	db.data = db.data[:end]
 	return nil
@@ -91,6 +92,6 @@ func (db *Memory) Search(ctx context.Context, embedding []float64, topK int) ([]
 	return result, nil
 }
 
-func (db *Memory) Size(ctx context.Context) int {
+func (db *Memory) Size() int {
 	return len(db.data)
 }
