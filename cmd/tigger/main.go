@@ -24,6 +24,7 @@ func main() {
 	ollamaEmbeddingModel := flag.String("ollama-embedding-model", "nomic-embed-text", "Ollama embedding model")
 	indexerChunkSize := flag.Int("indexer-chunk-size", 500, "Indexer chunk size")
 	indexerChunkOverlap := flag.Int("indexer-chunk-overlap", 100, "Indexer chunk overlap")
+	oracleTopKEmbeddings := flag.Int("oracle-topk-embeddings", 10, "Oracle topK embeddings")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] directories...\n\n", os.Args[0])
@@ -53,6 +54,7 @@ func main() {
 		store,
 		vectordb,
 		indexer,
+		oracle.WithTopKEmbeddings(*oracleTopKEmbeddings),
 	)
 
 	watcher, err := watcher.NewFileWatcher()
