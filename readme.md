@@ -4,12 +4,11 @@ A simple tool for asking questions based on a given document.
 
 # Demo
 
-## Run 
+## Run as cli
 ```sh
 make demo
 ```
 
-## Chat example
 ```sh
 ❓question: Who is the author of this story?
 🙈 answer: The author of this story is Anton Pavlovich Chekhov (Чехов Антон Павлович).
@@ -20,6 +19,21 @@ make demo
 ❓question:  What do the characters eat?
 🙈 answer: The characters eat blini (crepes), solyanka (a Russian soup), salmon, and caviar.
 ```
+
+
+## Run as service
+```sh
+make up
+```
+
+```sh
+curl --url 'http://localhost:8989/ask' --data-raw $'{\n  "kind": "fast",\n  "question":"почему француз пошел в ресторан"\n}'
+{"answer":"Француз Генри Пуркуа, клоун из цирка братьев Гинц, зашел в московский трактир Тестова позавтракать."}
+
+curl --url 'http://localhost:8989/ask' --data-raw $'{\n  "kind": "fast",\n  "question":"какая фамилия Саши"\n}'
+{"answer":"Саша Енякина — её фамилия Енякина."}
+```
+
 
 ## Requirements
 
