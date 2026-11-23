@@ -8,5 +8,8 @@ services:
     environment:
       OLLAMA_URL: http://host.docker.internal:11434
       PORT: 8989
+      DIRECTORIES: /app/assets
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - ../assets:/app/assets

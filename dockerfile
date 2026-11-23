@@ -10,6 +10,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/tiggerd ./cmd/tiggerd
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/tiggerd .
-COPY --from=builder /app/assets /app/assets
 EXPOSE 8989
 ENTRYPOINT ["./tiggerd"]
