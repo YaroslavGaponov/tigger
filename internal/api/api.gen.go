@@ -25,6 +25,9 @@ type Answer struct {
 
 // Question defines model for Question.
 type Question struct {
+	// Kind Algorithm
+	Kind string `json:"kind"`
+
 	// Question Question to ask
 	Question string `json:"question"`
 }
@@ -197,12 +200,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"rFK9buMwDH4VgXejYfsud4u33Jbtio5FB1VmEqW2pJB0iiDQuxeSHadGCnTpZIL8zO9HvIDxffAOnTA0",
-	"F2Czx17ncu34DSlVgXxAEou5r+d+i2zIBrHeQTPhlXgle1THATkPCpBzQGiAhazbQYwFEB4HS9hC83Rd",
-	"9zzj/MsBjUAs4OG6407D8cNkqeL6T9Kh+fVL+nnTvYAEtW7r70nE7nZIav1/k/Zb6XBuQgEnJB5xv8q6",
-	"rJMTH9DpYKGBVVmXKyggaNlnK1VSmQx6lvRNNnXi2bQp1GwhCUaWf749J4jxTtBltA6hsybjqwN7d3vD",
-	"VP0k3EIDP6rbI1fjlKs53LiMRGjA3ODgHY9x/67rb+OdziqzLlN9HIxB5u3QqekoYgF/RuolcuNOurOt",
-	"mnJJuL+f4wTJ6U4x0glJIZGnfAI89L2m85iw0rdzjTHG9wEA",
+	"rFLBjpwwDP2VyO0RAe22F27b29xa9Vj1kAYPZBeSjG2mGq3y71UCwwxipF72hOU8+z2e3xsYPwbv0AlD",
+	"8wZsehx1Lp8d/0VKVSAfkMRi7uu13yIbskGsd9AseCVeSY/qNCHnhwLkEhAaYCHrOoixAMLTZAlbaH5d",
+	"1/1ecf7PCxqBWMCP646dhlfr2gcKhs6TlX7ckxZwulu2HbvSJOmaX/+rOJPfLdxLTxPWHf2eS2zXIann",
+	"74dEY2XAtQkFnJF4xn0q67JOsn1Ap4OFBp7KunyCAoKWPptQJbHJGs+SvskgnXgObTIj/0nSjSzffHtJ",
+	"EOOdoMtoHcJgTcZXL+zd7fqp+kh4hAY+VLd4VPMrV+tZ4tYZoQlzg4N3PB/qc12/G+8SyMy6dfXnZAwy",
+	"H6dBLXGKBXyZqbfIgzvrwbZq8SXhvj7GCZLTg2KkM5JCIk85CTyNo6bL7LDSt6DHGOO/AQA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

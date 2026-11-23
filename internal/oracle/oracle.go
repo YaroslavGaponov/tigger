@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/YaroslavGaponov/tigger/internal/config"
@@ -13,6 +15,11 @@ import (
 	"github.com/YaroslavGaponov/tigger/internal/store"
 	"github.com/YaroslavGaponov/tigger/internal/vectordb"
 	"github.com/YaroslavGaponov/tigger/internal/watcher"
+)
+
+const (
+	AskKindFast     = "fast"
+	AskModeAccurate = "accurate"
 )
 
 type Oracle struct {
@@ -91,49 +98,15 @@ func (o *Oracle) RemoveData(ctx context.Context, name string) error {
 
 }
 
-func (o *Oracle) Ask(ctx context.Context, question string) (string, error) {
-	vector, err := o.ollama.GetEmbedding(ctx, question)
-	if err != nil {
-		return "", err
+func (o *Oracle) Ask(ctx context.Context, kind string, question string) (string, error) {
+	switch kind {
+	case AskModeAccurate:
+		return o.accurateAsk(ctx, question)
+	case AskKindFast:
+		return o.fastAsk(ctx, question)
+	default:
+		return o.fastAsk(ctx, question)
 	}
-
-	results, err := o.vectordb.Search(ctx, vector, o.topKEmbeddings)
-	if err != nil {
-		return "", err
-	}
-	var context []string
-	for _, result := range results {
-		data, err := o.store.Get(ctx, result["name"].(string), result["start"].(int), result["length"].(int))
-		if err != nil {
-			return "", err
-		}
-		context = append(context, string(data))
-	}
-
-	messages := []ollama.Message{
-		{
-			Role:    "system",
-			Content: "You are an assistant that answers questions exclusively based on the provided context. If the answer cannot be found in the context, respond: \"Information not found in the text.\" Do not use external knowledge.",
-		},
-		{
-			Role:    "system",
-			Content: "Answer must be only one sentence.",
-		},
-		{
-			Role:    "user",
-			Content: "Context: " + strings.Join(context, "\n") + "\n",
-		}, {
-			Role:    "user",
-			Content: "Question: " + question,
-		},
-	}
-
-	answer, err := o.ollama.Chat(ctx, messages)
-	if err != nil {
-		return "", err
-	}
-
-	return answer, nil
 }
 
 func (s *Oracle) Run(ctx context.Context) error {
@@ -188,4 +161,136 @@ func (s *Oracle) Run(ctx context.Context) error {
 	})
 
 	return s.watcher.Watch(ctx, s.directories)
+}
+
+func (o *Oracle) fastAsk(ctx context.Context, question string) (string, error) {
+	vector, err := o.ollama.GetEmbedding(ctx, question)
+	if err != nil {
+		return "", err
+	}
+
+	results, err := o.vectordb.Search(ctx, vector, o.topKEmbeddings)
+	if err != nil {
+		return "", err
+	}
+	var context []string
+	for _, result := range results {
+		data, err := o.store.Get(ctx, result["name"].(string), result["start"].(int), result["length"].(int))
+		if err != nil {
+			return "", err
+		}
+		context = append(context, string(data))
+	}
+
+	messages := []ollama.Message{
+		{
+			Role:    "system",
+			Content: "You are an assistant that answers questions exclusively based on the provided context. If the answer cannot be found in the context, respond: \"Information not found in the text.\" Do not use external knowledge.",
+		},
+		{
+			Role:    "system",
+			Content: "Answer must be only one sentence.",
+		},
+		{
+			Role:    "user",
+			Content: "Context: " + strings.Join(context, "\n") + "\n",
+		}, {
+			Role:    "user",
+			Content: "Question: " + question,
+		},
+	}
+
+	answer, err := o.ollama.Chat(ctx, messages)
+	if err != nil {
+		return "", err
+	}
+
+	return answer, nil
+}
+
+func (o *Oracle) accurateAsk(ctx context.Context, question string) (string, error) {
+	vector, err := o.ollama.GetEmbedding(ctx, question)
+	if err != nil {
+		return "", err
+	}
+
+	results, err := o.vectordb.Search(ctx, vector, 5*o.topKEmbeddings)
+	if err != nil {
+		return "", err
+	}
+	var chunks []string
+	for _, result := range results {
+		data, err := o.store.Get(ctx, result["name"].(string), result["start"].(int), result["length"].(int))
+		if err != nil {
+			return "", err
+		}
+		chunks = append(chunks, string(data))
+	}
+
+	scopes := make([][2]int, len(chunks))
+	for i, chunk := range chunks {
+		messages := []ollama.Message{
+			{
+				Role: "system",
+				Content: `Given a question and a text, evaluate how relevant the text is for answering the question.
+
+Return only a single integer from 0 to 100:
+- 0 — the text is completely irrelevant.
+- 50 — the text is partially relevant but insufficient.
+- 100 — the text directly and fully answers the question.
+
+Do not include explanations, comments, or any other text.`,
+			},
+			{
+				Role:    "user",
+				Content: "Question: " + question,
+			},
+			{
+				Role:    "user",
+				Content: "Text: " + chunk,
+			},
+		}
+		result, err := o.ollama.Chat(ctx, messages)
+		if err != nil {
+			return "", err
+		}
+		scope, err := strconv.Atoi(result)
+		if err != nil {
+			return "", err
+		}
+		scopes[i] = [2]int{i, scope}
+	}
+
+	sort.Slice(scopes, func(i, j int) bool {
+		return scopes[i][1] > scopes[j][1]
+	})
+
+	var context []string
+	for i := 0; i < min(o.topKEmbeddings, len(scopes)); i++ {
+		context = append(context, chunks[scopes[i][0]])
+	}
+
+	messages := []ollama.Message{
+		{
+			Role: "system",
+			Content: `You are an assistant that answers questions exclusively based on the provided context. 
+Answer must be only one sentence.
+If the answer cannot be found in the context, respond: \"Information not found in the text.\"
+Do not use external knowledge.`,
+		},
+		{
+			Role:    "user",
+			Content: "Context: " + strings.Join(context, "\n") + "\n",
+		}, {
+			Role:    "user",
+			Content: "Question: " + question,
+		},
+	}
+
+	answer, err := o.ollama.Chat(ctx, messages)
+	if err != nil {
+		return "", err
+	}
+
+	return answer, nil
 }

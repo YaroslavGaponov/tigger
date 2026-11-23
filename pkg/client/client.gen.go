@@ -22,6 +22,9 @@ type Answer struct {
 
 // Question defines model for Question.
 type Question struct {
+	// Kind Algorithm
+	Kind string `json:"kind"`
+
 	// Question Question to ask
 	Question string `json:"question"`
 }

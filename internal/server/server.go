@@ -30,7 +30,7 @@ func (s *Server) Ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := s.oracle.Ask(r.Context(), request.Question)
+	answer, err := s.oracle.Ask(r.Context(), request.Kind, request.Question)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

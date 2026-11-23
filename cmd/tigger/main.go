@@ -20,6 +20,7 @@ func main() {
 	indexerChunkSize := flag.Int("indexer-chunk-size", 500, "Indexer chunk size")
 	indexerChunkOverlap := flag.Int("indexer-chunk-overlap", 100, "Indexer chunk overlap")
 	oracleTopKEmbeddings := flag.Int("oracle-topk-embeddings", 10, "Oracle topK embeddings")
+	oracleKind := flag.String("oracle-kind", "fast", "Oracle kind")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] directories...\n\n", os.Args[0])
@@ -58,7 +59,7 @@ func main() {
 		if question == "exit" {
 			os.Exit(0)
 		}
-		answer, err := oracle.Ask(ctx, question)
+		answer, err := oracle.Ask(ctx, *oracleKind, question)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			continue

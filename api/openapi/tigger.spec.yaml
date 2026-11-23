@@ -33,11 +33,15 @@ components:
     Question:
       type: object
       required:
+        - kind
         - question
       properties:
         question:
           type: string
           description: Question to ask
+        kind:
+          type: string
+          description: Algorithm
 
     Answer:
       type: object
