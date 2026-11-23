@@ -1,0 +1,12 @@
+services:
+  tiggerd:
+    build:
+      context: ../
+      dockerfile: dockerfile
+    ports:
+      - "8989:8989"
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434
+      PORT: 8989
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

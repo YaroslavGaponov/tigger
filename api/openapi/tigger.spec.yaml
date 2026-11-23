@@ -1,0 +1,49 @@
+openapi: 3.0.3
+
+info:
+  title: tigger
+  version: 1.0.0
+  description: tigger API
+
+paths:
+  /ask:
+    post:
+      operationId: ask
+      summary: Ask a question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Question'
+      responses:
+        '200':
+          description: Successful answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    Question:
+      type: object
+      required:
+        - question
+      properties:
+        question:
+          type: string
+          description: Question to ask
+
+    Answer:
+      type: object
+      required:
+        - answer
+      properties:
+        answer:
+          type: string
+          description: Answer to the question
