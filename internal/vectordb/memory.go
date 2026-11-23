@@ -92,6 +92,6 @@ func (db *Memory) Search(ctx context.Context, embedding []float64, topK int) ([]
 	return result, nil
 }
 
-func (db *Memory) Size() int {
+func (db *Memory) Size(ctx context.Context) int {
 	return len(db.data)
 }

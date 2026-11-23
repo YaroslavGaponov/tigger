@@ -44,6 +44,6 @@ func (store *Memory) Get(ctx context.Context, name string, start, length int) (s
 	return data[start : start+length], nil
 }
 
-func (store *Memory) Size() int {
+func (store *Memory) Size(ctx context.Context) int {
 	return len(store.data)
 }

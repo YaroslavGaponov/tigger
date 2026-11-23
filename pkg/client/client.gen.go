@@ -14,11 +14,35 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for HealthStatus.
+const (
+	Ok HealthStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the HealthStatus enum.
+func (e HealthStatus) Valid() bool {
+	switch e {
+	case Ok:
+		return true
+	default:
+		return false
+	}
+}
+
 // Answer defines model for Answer.
 type Answer struct {
 	// Answer Answer to the question
 	Answer string `json:"answer"`
 }
+
+// Health defines model for Health.
+type Health struct {
+	// Status Example: ok
+	Status HealthStatus `json:"status"`
+}
+
+// HealthStatus Example: ok
+type HealthStatus string
 
 // Question defines model for Question.
 type Question struct {
@@ -119,6 +143,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /ask (the `Ask` operationId).
 	Ask(ctx context.Context, body AskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// Health Health check
+	//
+	// Corresponds with GET /health (the `Health` operationId).
+	Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // AskWithBody Ask a question
@@ -145,6 +174,21 @@ func (c *Client) AskWithBody(ctx context.Context, contentType string, body io.Re
 // Corresponds with POST /ask (the `Ask` operationId).
 func (c *Client) Ask(ctx context.Context, body AskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAskRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// Health Health check
+//
+// Corresponds with GET /health (the `Health` operationId).
+func (c *Client) Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHealthRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +235,33 @@ func NewAskRequestWithBody(server string, contentType string, body io.Reader) (*
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewHealthRequest constructs an http.Request for the Health method
+func NewHealthRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := "/health"
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -252,6 +323,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /ask (the `Ask` operationId).
 	AskWithResponse(ctx context.Context, body AskJSONRequestBody, reqEditors ...RequestEditorFn) (*AskResponse, error)
+
+	// HealthWithResponse Health check
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /health (the `Health` operationId).
+	HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthResponse, error)
 }
 
 type AskResponse struct {
@@ -295,6 +373,47 @@ func (r AskResponse) ContentType() string {
 	return ""
 }
 
+type HealthResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Health
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r HealthResponse) GetJSON200() *Health {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r HealthResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r HealthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HealthResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r HealthResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // AskWithBodyWithResponse Ask a question
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -319,6 +438,19 @@ func (c *ClientWithResponses) AskWithResponse(ctx context.Context, body AskJSONR
 		return nil, err
 	}
 	return ParseAskResponse(rsp)
+}
+
+// HealthWithResponse Health check
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /health (the `Health` operationId).
+func (c *ClientWithResponses) HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthResponse, error) {
+	rsp, err := c.Health(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHealthResponse(rsp)
 }
 
 // ParseAskResponse parses an HTTP response from a AskWithResponse call
@@ -347,6 +479,32 @@ func ParseAskResponse(rsp *http.Response) (*AskResponse, error) {
 
 	case rsp.StatusCode == 500:
 		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseHealthResponse parses an HTTP response from a HealthWithResponse call
+func ParseHealthResponse(rsp *http.Response) (*HealthResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HealthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Health
+		if err := runtime.JSONUnmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

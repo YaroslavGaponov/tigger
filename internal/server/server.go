@@ -47,3 +47,10 @@ func (s *Server) Ask(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+// Health Health check
+// (GET /health)
+func (s *Server) Health(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
+}

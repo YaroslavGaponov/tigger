@@ -6,6 +6,18 @@ info:
   description: tigger API
 
 paths:
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
   /ask:
     post:
       operationId: ask
@@ -15,21 +27,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Question'
+              $ref: "#/components/schemas/Question"
       responses:
-        '200':
+        "200":
           description: Successful answer
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Answer'
-        '400':
+                $ref: "#/components/schemas/Answer"
+        "400":
           description: Invalid request
-        '500':
+        "500":
           description: Internal server error
 
 components:
   schemas:
+    Health:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          example: ok
+
     Question:
       type: object
       required:

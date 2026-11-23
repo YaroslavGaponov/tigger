@@ -2,7 +2,6 @@ package oracle
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/YaroslavGaponov/tigger/internal/config"
 	"github.com/YaroslavGaponov/tigger/internal/indexer"
+	"github.com/YaroslavGaponov/tigger/internal/logger"
 	"github.com/YaroslavGaponov/tigger/internal/ollama"
 	"github.com/YaroslavGaponov/tigger/internal/store"
 	"github.com/YaroslavGaponov/tigger/internal/vectordb"
@@ -122,21 +122,20 @@ func (s *Oracle) Run(ctx context.Context) error {
 				continue
 			}
 
-			fmt.Printf("📂 Loading and indexing file: %s...", entry.Name())
+			logger.Log.Info().Msgf("📂 Loading and indexing file: %s...", entry.Name())
 
 			path := filepath.Join(dirName, entry.Name())
 
 			data, err := os.ReadFile(path)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
+				logger.Log.Err(err).Str("component", "oracle").Send()
 				continue
 			}
 
 			if err := s.AddData(ctx, path, string(data)); err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
+				logger.Log.Err(err).Str("component", "oracle").Send()
 				return err
 			}
-			fmt.Println("done")
 		}
 
 	}
@@ -144,18 +143,18 @@ func (s *Oracle) Run(ctx context.Context) error {
 	s.watcher.OnCreate(func(fileName string) {
 		data, err := os.ReadFile(fileName)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
 		if err := s.AddData(ctx, fileName, string(data)); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
 	})
 
 	s.watcher.OnRemove(func(fileName string) {
 		if err := s.RemoveData(ctx, fileName); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
 	})

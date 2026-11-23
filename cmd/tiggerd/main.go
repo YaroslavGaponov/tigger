@@ -12,6 +12,7 @@ import (
 
 	"github.com/YaroslavGaponov/tigger/internal/api"
 	"github.com/YaroslavGaponov/tigger/internal/config"
+	"github.com/YaroslavGaponov/tigger/internal/logger"
 	"github.com/YaroslavGaponov/tigger/internal/oracle"
 	"github.com/YaroslavGaponov/tigger/internal/server"
 	"github.com/YaroslavGaponov/tigger/internal/utils"
@@ -54,12 +55,15 @@ func main() {
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
+		logger.Log.Info().Msg("👍 HTTP server is starting....")
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			os.Exit(2)
 		}
 	}()
 
 	<-stop
+
+	logger.Log.Info().Msg("👎 Shutting down HTTP server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

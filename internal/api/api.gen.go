@@ -17,11 +17,35 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Defines values for HealthStatus.
+const (
+	Ok HealthStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the HealthStatus enum.
+func (e HealthStatus) Valid() bool {
+	switch e {
+	case Ok:
+		return true
+	default:
+		return false
+	}
+}
+
 // Answer defines model for Answer.
 type Answer struct {
 	// Answer Answer to the question
 	Answer string `json:"answer"`
 }
+
+// Health defines model for Health.
+type Health struct {
+	// Status Example: ok
+	Status HealthStatus `json:"status"`
+}
+
+// HealthStatus Example: ok
+type HealthStatus string
 
 // Question defines model for Question.
 type Question struct {
@@ -40,6 +64,9 @@ type ServerInterface interface {
 	// Ask Ask a question
 	// (POST /ask)
 	Ask(w http.ResponseWriter, r *http.Request)
+	// Health Health check
+	// (GET /health)
+	Health(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -48,6 +75,12 @@ type Unimplemented struct{}
 // Ask Ask a question
 // (POST /ask)
 func (_ Unimplemented) Ask(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Health Health check
+// (GET /health)
+func (_ Unimplemented) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -65,6 +98,20 @@ func (siw *ServerInterfaceWrapper) Ask(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Ask(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Health operation middleware
+func (siw *ServerInterfaceWrapper) Health(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Health(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -189,6 +236,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/health", wrapper.Health)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/ask", wrapper.Ask)
 	})
 
@@ -200,12 +250,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"rFLBjpwwDP2VyO0RAe22F27b29xa9Vj1kAYPZBeSjG2mGq3y71UCwwxipF72hOU8+z2e3xsYPwbv0AlD",
-	"8wZsehx1Lp8d/0VKVSAfkMRi7uu13yIbskGsd9AseCVeSY/qNCHnhwLkEhAaYCHrOoixAMLTZAlbaH5d",
-	"1/1ecf7PCxqBWMCP646dhlfr2gcKhs6TlX7ckxZwulu2HbvSJOmaX/+rOJPfLdxLTxPWHf2eS2zXIann",
-	"74dEY2XAtQkFnJF4xn0q67JOsn1Ap4OFBp7KunyCAoKWPptQJbHJGs+SvskgnXgObTIj/0nSjSzffHtJ",
-	"EOOdoMtoHcJgTcZXL+zd7fqp+kh4hAY+VLd4VPMrV+tZ4tYZoQlzg4N3PB/qc12/G+8SyMy6dfXnZAwy",
-	"H6dBLXGKBXyZqbfIgzvrwbZq8SXhvj7GCZLTg2KkM5JCIk85CTyNo6bL7LDSt6DHGOO/AQA=",
+	"tFPBktMwDP0Vj+CYaQoLl9yWE73BcGQ4GEdtvE1sV1IKnZ38OyMnTbckM3uBUzTK83vPz9IzuNilGDAI",
+	"Q/UM7BrsbC4fA/9C0ipRTEjiMfft3K+RHfkkPgaoJryRaKRBc+qR848C5JIQKmAhHw4wDAUQnnpPWEP1",
+	"/Ur3Y8bFn0/oBIYCPqNtpVk6YLHS5wpD3ylJPCoB/rZdajPH8VXdiWRN9+vV+0L56EO9cvP2EMlL0y1F",
+	"Czi9ILs/dpXRyCy/7jiLvyBcWtcTPuzjUkv84YBkHr/sVMZLi3MTCjgj8Yh7t9lutmo7Jgw2eajgYbPd",
+	"PEAByUqTQyjVrEYTWfSrAVnV2dUaRr6J+kaWT7G+KMTFIBgy2qbUepfx5RPHcJs6rd4S7qGCN+VtLMvx",
+	"L5fzswz3yQj1mBucYuDxod5vt/9Md1qErHqf6rfeOWTe962Zxngo4MMofY/chbNtfW2mXBT3cR0nSMG2",
+	"hpHOSAaJIuVJ4L7rLF3GhI29LZj+LJt5VQ648ijTJv3HkCaFtZCQzt6h8WxGl5e/7jMeNa5Bd1SC4c8A",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

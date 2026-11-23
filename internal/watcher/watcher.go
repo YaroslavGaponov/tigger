@@ -2,8 +2,8 @@ package watcher
 
 import (
 	"context"
-	"log"
 
+	"github.com/YaroslavGaponov/tigger/internal/logger"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -72,7 +72,7 @@ func (f *FileWatcher) listen(ctx context.Context) {
 			if !ok {
 				return
 			}
-			log.Println("watcher error:", err)
+			logger.Log.Err(err).Str("component", "watcher").Send()
 		}
 	}
 }
