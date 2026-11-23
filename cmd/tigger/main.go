@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/YaroslavGaponov/tigger/internal/config"
-	"github.com/YaroslavGaponov/tigger/internal/core"
+	"github.com/YaroslavGaponov/tigger/internal/oracle"
 )
 
 func main() {
@@ -39,8 +39,11 @@ func main() {
 		OracleTopKEmbeddings: *oracleTopKEmbeddings,
 	}
 
-	core := core.NewCore(config)
-	core.Run(ctx)
+	oracle, err := oracle.NewOracle(config)
+	if err != nil {
+		panic(err)
+	}
+	oracle.Run(ctx)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -55,7 +58,7 @@ func main() {
 		if question == "exit" {
 			os.Exit(0)
 		}
-		answer, err := core.Ask(ctx, question)
+		answer, err := oracle.Ask(ctx, question)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			continue

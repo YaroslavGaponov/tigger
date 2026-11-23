@@ -2,36 +2,64 @@ package oracle
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/YaroslavGaponov/tigger/internal/config"
 	"github.com/YaroslavGaponov/tigger/internal/indexer"
 	"github.com/YaroslavGaponov/tigger/internal/ollama"
 	"github.com/YaroslavGaponov/tigger/internal/store"
 	"github.com/YaroslavGaponov/tigger/internal/vectordb"
+	"github.com/YaroslavGaponov/tigger/internal/watcher"
 )
 
 type Oracle struct {
-	ollama         *ollama.Ollama
-	store          store.Store
-	vectordb       vectordb.VectorDB
-	indexer        *indexer.Indexer
+	ollama   *ollama.Ollama
+	store    store.Store
+	vectordb vectordb.VectorDB
+	indexer  *indexer.Indexer
+	watcher  *watcher.FileWatcher
+
 	topKEmbeddings int
+	directories    []string
 }
 
-func NewOracle(ollama *ollama.Ollama, store store.Store, vectordb vectordb.VectorDB, indexer *indexer.Indexer, opts ...OracleOption) *Oracle {
+func NewOracle(config config.Config) (*Oracle, error) {
+	store := store.NewMemory()
+
+	vectordb := vectordb.NewMemory(
+		vectordb.MemoryWithDistanceFunc(vectordb.CosineSimilarity),
+	)
+
+	ollama := ollama.NewOllama(
+		ollama.WithUrl(config.OllamaUrl),
+		ollama.WithChatModel(config.OllamaChatModel),
+		ollama.WithEmbeddingModel(config.OllamaEmbeddingModel),
+	)
+
+	indexer := indexer.NewIndexer(
+		indexer.WithChunkSize(config.IndexerChunkSize),
+		indexer.WithChunkOverlap(config.IndexerChunkOverlap),
+	)
+
+	watcher, err := watcher.NewFileWatcher()
+	if err != nil {
+		return nil, err
+	}
+
 	oracle := &Oracle{
-		ollama:         ollama,
 		store:          store,
 		vectordb:       vectordb,
+		ollama:         ollama,
 		indexer:        indexer,
-		topKEmbeddings: 5,
+		watcher:        watcher,
+		topKEmbeddings: config.OracleTopKEmbeddings,
+		directories:    config.Directories,
 	}
 
-	for _, opt := range opts {
-		opt(oracle)
-	}
-
-	return oracle
+	return oracle, nil
 }
 
 func (o *Oracle) AddData(ctx context.Context, name, text string) error {
@@ -106,4 +134,58 @@ func (o *Oracle) Ask(ctx context.Context, question string) (string, error) {
 	}
 
 	return answer, nil
+}
+
+func (s *Oracle) Run(ctx context.Context) error {
+
+	for _, dirName := range s.directories {
+		entries, err := os.ReadDir(dirName)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			fmt.Printf("📂 Loading and indexing file: %s...", entry.Name())
+
+			path := filepath.Join(dirName, entry.Name())
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				continue
+			}
+
+			if err := s.AddData(ctx, path, string(data)); err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				return err
+			}
+			fmt.Println("done")
+		}
+
+	}
+
+	s.watcher.OnCreate(func(fileName string) {
+		data, err := os.ReadFile(fileName)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
+		}
+		if err := s.AddData(ctx, fileName, string(data)); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
+		}
+	})
+
+	s.watcher.OnRemove(func(fileName string) {
+		if err := s.RemoveData(ctx, fileName); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
+		}
+	})
+
+	return s.watcher.Watch(ctx, s.directories)
 }

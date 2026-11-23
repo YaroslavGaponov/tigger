@@ -6,20 +6,19 @@ import (
 	"net/http"
 
 	"github.com/YaroslavGaponov/tigger/internal/api"
-	"github.com/YaroslavGaponov/tigger/internal/config"
-	"github.com/YaroslavGaponov/tigger/internal/core"
+	"github.com/YaroslavGaponov/tigger/internal/oracle"
 )
 
 type Server struct {
-	core *core.Core
+	oracle *oracle.Oracle
 }
 
-func NewServer(config config.Config) (*Server, error) {
-	return &Server{core: core.NewCore(config)}, nil
+func NewServer(oracle *oracle.Oracle) (*Server, error) {
+	return &Server{oracle: oracle}, nil
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	return s.core.Run(ctx)
+	return s.oracle.Run(ctx)
 }
 
 // Ask Ask a question
@@ -31,7 +30,7 @@ func (s *Server) Ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := s.core.Ask(r.Context(), request.Question)
+	answer, err := s.oracle.Ask(r.Context(), request.Question)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

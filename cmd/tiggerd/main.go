@@ -12,6 +12,7 @@ import (
 
 	"github.com/YaroslavGaponov/tigger/internal/api"
 	"github.com/YaroslavGaponov/tigger/internal/config"
+	"github.com/YaroslavGaponov/tigger/internal/oracle"
 	"github.com/YaroslavGaponov/tigger/internal/server"
 	"github.com/YaroslavGaponov/tigger/internal/utils"
 )
@@ -30,7 +31,12 @@ func main() {
 		OracleTopKEmbeddings: utils.Getenv("ORACLE_TOPK_EMBEDDINGS", 10),
 	}
 
-	server, err := server.NewServer(config)
+	oracle, err := oracle.NewOracle(config)
+	if err != nil {
+		panic(err)
+	}
+
+	server, err := server.NewServer(oracle)
 	if err != nil {
 		panic(err)
 	}
