@@ -6,6 +6,19 @@ info:
   description: tigger API
 
 paths:
+
+  /:
+    get:
+      operationId: getChat
+      summary: Get chat interface
+      responses:
+        '200':
+          description: Chat HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
   /health:
     get:
       operationId: health

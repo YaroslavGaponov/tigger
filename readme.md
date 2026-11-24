@@ -25,7 +25,13 @@ make demo
 ```sh
 make up
 ```
+### Web
 
+```
+open http://localhost:8989/
+```
+
+### REST API
 ```sh
 curl --url 'http://localhost:8989/ask' --data-raw $'{\n  "kind": "fast",\n  "question":"почему француз пошел в ресторан"\n}'
 {"answer":"Француз Генри Пуркуа, клоун из цирка братьев Гинц, зашел в московский трактир Тестова позавтракать."}

@@ -61,6 +61,9 @@ type AskJSONRequestBody = Question
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetChat Get chat interface
+	// (GET /)
+	GetChat(w http.ResponseWriter, r *http.Request)
 	// Ask Ask a question
 	// (POST /ask)
 	Ask(w http.ResponseWriter, r *http.Request)
@@ -71,6 +74,12 @@ type ServerInterface interface {
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 type Unimplemented struct{}
+
+// GetChat Get chat interface
+// (GET /)
+func (_ Unimplemented) GetChat(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Ask Ask a question
 // (POST /ask)
@@ -92,6 +101,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetChat operation middleware
+func (siw *ServerInterfaceWrapper) GetChat(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetChat(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Ask operation middleware
 func (siw *ServerInterfaceWrapper) Ask(w http.ResponseWriter, r *http.Request) {
@@ -236,6 +259,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/", wrapper.GetChat)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/health", wrapper.Health)
 	})
 	r.Group(func(r chi.Router) {
@@ -250,13 +276,14 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"tFPBktMwDP0Vj+CYaQoLl9yWE73BcGQ4GEdtvE1sV1IKnZ38OyMnTbckM3uBUzTK83vPz9IzuNilGDAI",
-	"Q/UM7BrsbC4fA/9C0ipRTEjiMfft3K+RHfkkPgaoJryRaKRBc+qR848C5JIQKmAhHw4wDAUQnnpPWEP1",
-	"/Ur3Y8bFn0/oBIYCPqNtpVk6YLHS5wpD3ylJPCoB/rZdajPH8VXdiWRN9+vV+0L56EO9cvP2EMlL0y1F",
-	"Czi9ILs/dpXRyCy/7jiLvyBcWtcTPuzjUkv84YBkHr/sVMZLi3MTCjgj8Yh7t9lutmo7Jgw2eajgYbPd",
-	"PEAByUqTQyjVrEYTWfSrAVnV2dUaRr6J+kaWT7G+KMTFIBgy2qbUepfx5RPHcJs6rd4S7qGCN+VtLMvx",
-	"L5fzswz3yQj1mBucYuDxod5vt/9Md1qErHqf6rfeOWTe962Zxngo4MMofY/chbNtfW2mXBT3cR0nSMG2",
-	"hpHOSAaJIuVJ4L7rLF3GhI29LZj+LJt5VQ648ijTJv3HkCaFtZCQzt6h8WxGl5e/7jMeNa5Bd1SC4c8A",
+	"tFTBjtMwEP0Va+AYNYWFS26FA7sSSCC4IQ7GmSbeJrY7MylbrfLvyE7abpNIlZC4NJb9/N6bN54+g/Ft",
+	"8A6dMBTPwKbGVqflxvEfpLgK5AOSWEz7+rxfIhuyQax3UIx4JV5JjWrfIaeDDOQYEApgIesq6PsMCPed",
+	"JSyh+Hmi+3XG+d+PaAT6DO5RN1LPHbBo6dIKXddGEr+LBPik29Akjt1N3ZFkSffbyftMeWdduVB5U3my",
+	"Urdz0Qz2L8iur51kYmSabztO4i8I59bjDeu2fq4ltqqQ1ObrQ5Sx0uB5EzI4IPGAe7Nar9bRtg/odLBQ",
+	"wN1qvbqDDIKWOoWQx58KJX5iODpqPJRQwCeUj7UWiL45eMdDam/X6/gx3gm6dE3wSfJa2uby5tL2pP4+",
+	"m5QR2dX9jy+fVdAVpoS4a1tNx0FdmQiwTpC22gyAPGYbO+l5wfImBR9jRpYPvjxOnOoQGmsSPn9k764N",
+	"vybcQgGv8ssU5cMp5+dX1F83UqjD/mZC/647zu1Cet87Y5B52zVqnLo+g3eD9DXywR10Y0s15hJx75dx",
+	"guR0oxjpgKSQyNOkLRveKX35P0gtqc+TvfiOxsH/jyGNCkshIR2sQWVZDS6Pk3qGq8rUaHaRoP87AA==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -130,6 +130,11 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// GetChat Get chat interface
+	//
+	// Corresponds with GET / (the `GetChat` operationId).
+	GetChat(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AskWithBody Ask a question
 	//
 	// Takes any type of body and a specified content type.
@@ -148,6 +153,21 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /health (the `Health` operationId).
 	Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// GetChat Get chat interface
+//
+// Corresponds with GET / (the `GetChat` operationId).
+func (c *Client) GetChat(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetChatRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // AskWithBody Ask a question
@@ -197,6 +217,33 @@ func (c *Client) Health(ctx context.Context, reqEditors ...RequestEditorFn) (*ht
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetChatRequest constructs an http.Request for the GetChat method
+func NewGetChatRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := "/"
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewAskRequest calls the generic Ask builder with application/json body
@@ -310,6 +357,13 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// GetChatWithResponse Get chat interface
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET / (the `GetChat` operationId).
+	GetChatWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetChatResponse, error)
+
 	// AskWithBodyWithResponse Ask a question
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -330,6 +384,40 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /health (the `Health` operationId).
 	HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthResponse, error)
+}
+
+type GetChatResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r GetChatResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetChatResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetChatResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetChatResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type AskResponse struct {
@@ -414,6 +502,19 @@ func (r HealthResponse) ContentType() string {
 	return ""
 }
 
+// GetChatWithResponse Get chat interface
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET / (the `GetChat` operationId).
+func (c *ClientWithResponses) GetChatWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetChatResponse, error) {
+	rsp, err := c.GetChat(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetChatResponse(rsp)
+}
+
 // AskWithBodyWithResponse Ask a question
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -451,6 +552,22 @@ func (c *ClientWithResponses) HealthWithResponse(ctx context.Context, reqEditors
 		return nil, err
 	}
 	return ParseHealthResponse(rsp)
+}
+
+// ParseGetChatResponse parses an HTTP response from a GetChatWithResponse call
+func ParseGetChatResponse(rsp *http.Response) (*GetChatResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetChatResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParseAskResponse parses an HTTP response from a AskWithResponse call
