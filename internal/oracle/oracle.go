@@ -137,7 +137,7 @@ func (s *Oracle) Run(ctx context.Context) error {
 				return err
 			}
 		}
-
+		logger.Log.Info().Msgf("👓 The storage contains %d documents, while the VectorDB contains %d vectors.", s.store.Size(ctx), s.vectordb.Size(ctx))
 	}
 
 	s.watcher.OnCreate(func(fileName string) {
@@ -150,6 +150,7 @@ func (s *Oracle) Run(ctx context.Context) error {
 			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
+		logger.Log.Info().Msgf("👓 The storage contains %d documents, while the VectorDB contains %d vectors.", s.store.Size(ctx), s.vectordb.Size(ctx))
 	})
 
 	s.watcher.OnRemove(func(fileName string) {
@@ -157,6 +158,7 @@ func (s *Oracle) Run(ctx context.Context) error {
 			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
+		logger.Log.Info().Msgf("👓 The storage contains %d documents, while the VectorDB contains %d vectors.", s.store.Size(ctx), s.vectordb.Size(ctx))
 	})
 
 	return s.watcher.Watch(ctx, s.directories)
@@ -182,14 +184,7 @@ func (o *Oracle) fastAsk(ctx context.Context, question string) (string, error) {
 	}
 
 	messages := []ollama.Message{
-		{
-			Role:    "system",
-			Content: "You are an assistant that answers questions exclusively based on the provided context. If the answer cannot be found in the context, respond: \"Information not found in the text.\" Do not use external knowledge.",
-		},
-		{
-			Role:    "system",
-			Content: "Answer must be only one sentence.",
-		},
+		AssistantPrompt,
 		{
 			Role:    "user",
 			Content: "Context: " + strings.Join(context, "\n") + "\n",
@@ -229,17 +224,7 @@ func (o *Oracle) accurateAsk(ctx context.Context, question string) (string, erro
 	scopes := make([][2]int, len(chunks))
 	for i, chunk := range chunks {
 		messages := []ollama.Message{
-			{
-				Role: "system",
-				Content: `Given a question and a text, evaluate how relevant the text is for answering the question.
-
-Return only a single integer from 0 to 100:
-- 0 — the text is completely irrelevant.
-- 50 — the text is partially relevant but insufficient.
-- 100 — the text directly and fully answers the question.
-
-Do not include explanations, comments, or any other text.`,
-			},
+			EstimatePrompt,
 			{
 				Role:    "user",
 				Content: "Question: " + question,
@@ -270,13 +255,7 @@ Do not include explanations, comments, or any other text.`,
 	}
 
 	messages := []ollama.Message{
-		{
-			Role: "system",
-			Content: `You are an assistant that answers questions exclusively based on the provided context. 
-Answer must be only one sentence.
-If the answer cannot be found in the context, respond: \"Information not found in the text.\"
-Do not use external knowledge.`,
-		},
+		AssistantPrompt,
 		{
 			Role:    "user",
 			Content: "Context: " + strings.Join(context, "\n") + "\n",
