@@ -12,12 +12,12 @@ var ErrFileFormatIsNotSupported = errors.New("file format is not supported")
 func GetContext(fileName string) (string, error) {
 	switch strings.ToLower(path.Ext(fileName)) {
 	case ".txt", ".md":
-		return getContextForText(fileName)
+		return getContextForTextFile(fileName)
 	}
 	return "", ErrFileFormatIsNotSupported
 }
 
-func getContextForText(fileName string) (string, error) {
+func getContextForTextFile(fileName string) (string, error) {
 	data, err := os.ReadFile(fileName)
 	return string(data), err
 }
