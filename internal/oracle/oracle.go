@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/YaroslavGaponov/tigger/internal/config"
+	filereader "github.com/YaroslavGaponov/tigger/internal/file-reader"
 	"github.com/YaroslavGaponov/tigger/internal/indexer"
 	"github.com/YaroslavGaponov/tigger/internal/logger"
 	"github.com/YaroslavGaponov/tigger/internal/ollama"
@@ -123,16 +124,13 @@ func (s *Oracle) Run(ctx context.Context) error {
 			}
 
 			logger.Log.Info().Msgf("📂 Loading and indexing file: %s...", entry.Name())
-
-			path := filepath.Join(dirName, entry.Name())
-
-			data, err := os.ReadFile(path)
+			fileName := filepath.Join(dirName, entry.Name())
+			context, err := filereader.GetContext(fileName)
 			if err != nil {
 				logger.Log.Err(err).Str("component", "oracle").Send()
-				continue
+				return err
 			}
-
-			if err := s.AddData(ctx, path, string(data)); err != nil {
+			if err := s.AddData(ctx, fileName, context); err != nil {
 				logger.Log.Err(err).Str("component", "oracle").Send()
 				return err
 			}
@@ -141,12 +139,12 @@ func (s *Oracle) Run(ctx context.Context) error {
 	}
 
 	s.watcher.OnCreate(func(fileName string) {
-		data, err := os.ReadFile(fileName)
+		context, err := filereader.GetContext(fileName)
 		if err != nil {
 			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
-		if err := s.AddData(ctx, fileName, string(data)); err != nil {
+		if err := s.AddData(ctx, fileName, context); err != nil {
 			logger.Log.Err(err).Str("component", "oracle").Send()
 			return
 		}
