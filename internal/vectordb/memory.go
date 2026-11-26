@@ -18,7 +18,7 @@ type searchNode struct {
 
 type Memory struct {
 	mu             sync.RWMutex
-	data           []Node
+	data           []*Node
 	distanceMetric DistanceMetric
 }
 
@@ -37,7 +37,7 @@ func NewMemory(opts ...MemoryOption) VectorDB {
 func (db *Memory) Add(ctx context.Context, embedding []float64, metadata map[string]any) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	node := Node{
+	node := &Node{
 		embedding: embedding,
 		metadata:  metadata,
 	}
@@ -61,7 +61,7 @@ func (db *Memory) Remove(ctx context.Context, metadata map[string]any) error {
 		if mustDelete {
 			end--
 			db.data[i] = db.data[end]
-			db.data[end] = Node{}
+			db.data[end] = nil
 		} else {
 			i++
 		}
@@ -77,7 +77,7 @@ func (db *Memory) Search(ctx context.Context, embedding []float64, topK int) ([]
 	arr := make([]searchNode, 0, len(db.data))
 	for _, node := range db.data {
 		arr = append(arr, searchNode{
-			Node:  &node,
+			Node:  node,
 			Scope: db.distanceMetric(embedding, node.embedding),
 		},
 		)
